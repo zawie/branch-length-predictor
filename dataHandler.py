@@ -119,7 +119,7 @@ def GenerateDatasets(amount_dictionary,sequenceLength=200,mean=0.1,std=0,model="
     dataset_dictionary = dict()
     for key,amount in amount_dictionary.items():
         Generate(key,amount,sequenceLength=sequenceLength,mean=mean,std=std,model=model,r_matrix=r_matrix,f_matrix=f_matrix,TreeConstructor=TreeConstructor,pop_size=pop_size)
-        dataset_dictionary[key] = NonpermutedDataset(key)
+        dataset_dictionary[key] = SequenceDataset(key)
     return dataset_dictionary
 
 #Sequence modifiers
@@ -140,8 +140,10 @@ def hotencode(sequence):
 #Readers
 
 def getTreeVectors(file_path):
-    return pickle.load(vectors,open(file_path,"rb"))
-
+    vectors = []
+    for vector in pickle.load(open(file_path,"rb")):
+        vectors.append(torch.tensor(vector))
+    return vectors
 def getSequences(file_path):
     """
     Reads all seqeunces generated into a python list
@@ -165,32 +167,21 @@ def getSequences(file_path):
             taxaDict[taxaChar] = sequence
         if (pos+1)%5==0:
             data[pos//5] = [taxaDict['A'],taxaDict['B'],taxaDict['C'],taxaDict['D']]
+            data[pos//5] =  torch.tensor(data[pos//5],dtype=torch.float)
             taxaDict = dict()
     file.close()
     return data
 
 #Datasets
 class SequenceDataset(Dataset):
-    def __init__(self,folder):
+    def __init__(self,name):
         """
         Initializes the Dataset.
         This primarily entiles reading the generated sequeences into a python list
         """
-        #Define constants
-        self.folder = folder
-        self.preprocess = preprocess
-        self.sequences = getSequences(f"data/{folder}.dat")
-        self.trees = getTreeVectors(f"data/{folder}.vec")
-        self._augment = augment_function
-        self.expand = expand_function
-        #Preprocess
-        if preprocess:
-            self.X_data = list()
-            self.Y_data = list()
-            for instance in self.instances:
-                X,y = self._augment(instance)
-                self.X_data.append(X)
-                self.Y_data.append(y)
+        self.X_data = getSequences(f"data/{name}.dat")
+        self.Y_data = getTreeVectors(f"data/{name}.vec")
+        self.length = len(self.Y_data)
 
     def __getitem__(self,index):
         """
@@ -203,7 +194,7 @@ class SequenceDataset(Dataset):
         """
         Returns the number of entries in this dataset
         """
-        return len(self.instances)
+        return self.length
 
     def __add__(self, other):
         """
@@ -215,12 +206,10 @@ class MergedSequenceDataset(Dataset):
     def __init__(self,data0,data1):
         """
         """
-        #assert(data0.expand == data1.expand)
-        #assert(data0.preprocess and data1.preprocess)
         self.expand = data0.expand
         self.X_data = data0.X_data + data1.X_data
         self.Y_data = data0.Y_data + data1.Y_data
-
+        self.length = data0.length + data1.length
     def __getitem__(self,index):
         """
         Gets a certain tree across all three trees (alpha,beta,charlie)
@@ -231,7 +220,7 @@ class MergedSequenceDataset(Dataset):
         """
         Returns the number of entries in this dataset
         """
-        return len(self.X_data)
+        return self.length
 
     def __add__(self, other):
         """
