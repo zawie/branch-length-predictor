@@ -18,7 +18,6 @@ def WriteToTre(txt):
 def TreeToVector(tree,relative=True):
     vector = [0]*5
     taxons = ["'A'","'B'","'C'","'D'"]
-    print(tree)
     #Get leaf edges
     for edge in tree.edges():
         tail = edge.rootedge
@@ -91,10 +90,13 @@ def PureKingmanTreeConstructor(name,amount,pop_size=1,minimum=0.1,maximum=1):
                 trees.append(tree)
     #Create string
     tre_str = ""
+    vectors = []
     for tree in trees:
         tre_str += str(tree) + ";\n"
-        vector = TreeToVector(tree)
+        vectors.append(TreeToVector(tree))
+    #WriteToTre and pickle vectors
     WriteToTre(tre_str)
+    pickle.dump(vectors,open(f"data/{name}.vec","wb"))
 
 PureKingmanTreeConstructor("test",10)
 #Generator
@@ -138,17 +140,7 @@ def hotencode(sequence):
 #Readers
 
 def getTreeVectors(file_path):
-    """
-
-    """
-    file = open(file_path,"r")
-    trees = []
-    taxaDict = dict()
-    for pos,line in enumerate(file):
-        vector = []
-        trees.append(vector)
-    file.close()
-    return
+    return pickle.load(vectors,open(file_path,"rb"))
 
 def getSequences(file_path):
     """
@@ -188,7 +180,7 @@ class SequenceDataset(Dataset):
         self.folder = folder
         self.preprocess = preprocess
         self.sequences = getSequences(f"data/{folder}.dat")
-        self.trees = getTreeVectors(f"data/{folder}.tre")
+        self.trees = getTreeVectors(f"data/{folder}.vec")
         self._augment = augment_function
         self.expand = expand_function
         #Preprocess
